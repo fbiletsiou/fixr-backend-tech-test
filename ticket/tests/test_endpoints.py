@@ -3,13 +3,15 @@ from operator import itemgetter
 from django_dynamic_fixture import G
 
 from test import APITestCase, AnyOrder, Any
-from ticket.models import Order, Event, TicketType
+from ticket.models import Order, Event, TicketType, OrderState
 
 
 class EndpointsTest(APITestCase):
     @classmethod
     def setUpTestData(cls):
         cls.event = G(Event, name='Summer Party', description='We have a pool !')
+        cls.active_state = G(OrderState, name='Active')
+        cls.cancelled_state = G(OrderState, name='Cancelled')
         cls.ticket_type1 = G(TicketType, name='Early Bird', event=cls.event, quantity=1)
         cls.ticket_type2 = G(TicketType, name='Night Owl', event=cls.event, quantity=2)
 
@@ -69,17 +71,18 @@ class EndpointsTest(APITestCase):
     def test_ticket_ordering(self):
         self.authorize()
 
-        not_enought_ticket_resp = self.client.post('/api/orders', data={
+        not_enough_ticket_resp = self.client.post('/api/orders', data={
             'ticket_type': self.ticket_type1.pk,
-            'quantity': 2
+            'quantity': 2,
+            'state_name': self.active_state.name
         })
         successful_resp = self.client.post('/api/orders', data={
             'ticket_type': self.ticket_type2.pk,
             'quantity': 2
         })
 
-        self.assertEqual(not_enought_ticket_resp.status_code, 400)
-        self.assertEqual(not_enought_ticket_resp.data, ["Couldn't book tickets"])
+        self.assertEqual(not_enough_ticket_resp.status_code, 400)
+        self.assertEqual(not_enough_ticket_resp.data, ["Couldn't book tickets"])
         self.assertEqual(successful_resp.status_code, 201)
         self.assertEqual(successful_resp.data, {
             'id': Any(int),
@@ -94,7 +97,7 @@ class EndpointsTest(APITestCase):
 
         resp = self.client.get(detail_url)
 
-        self.authorize() # Change user
+        self.authorize()  # Change user
         other_user_resp = self.client.get(detail_url)
 
         self.assertEqual(resp.status_code, 200)

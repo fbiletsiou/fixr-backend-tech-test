@@ -30,11 +30,19 @@ class Ticket(models.Model):
                               default=None, null=True, on_delete=models.SET_NULL)
 
 
+class OrderState(models.Model):
+    name = models.CharField(max_length=25)
+
+
 class Order(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='orders', on_delete=models.PROTECT)
     ticket_type = models.ForeignKey(TicketType, related_name='orders', on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField()
     fulfilled = models.BooleanField(default=False)
+
+    # new fields
+    created = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    state = models.ForeignKey(OrderState, related_name='state',  null=True, on_delete=models.CASCADE)
 
     def book_tickets(self):
         if self.fulfilled:
